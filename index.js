@@ -7,6 +7,8 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var morgan = require('morgan');
 var methodOverride = require('method-override');
+var crypto = require('crypto');
+var https = require('https');
 
 require('dotenv').load();
 
@@ -17,7 +19,7 @@ var app = express();
   app.use(bodyParser.urlencoded({extended: true}));
   app.use(bodyParser.json());
   app.use(methodOverride());
-  app.use(session({secret: 'keyboard cat', resave: false, saveUninitialized: true}));
+  app.use(session({secret: 'aloo cat', cookie: {maxAge: 86400000}, resave: false, saveUninitialized: true}));
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -28,9 +30,11 @@ console.log('Listening on port', port);
 
 // serialize and deserialize
 passport.serializeUser(function(user, done) {
-  done(null, user);
+  // console.log('userEmail: ', user.userEmail);
+  done(null, user.userEmail);
 });
 passport.deserializeUser(function(obj, done) {
+  // console.log('logout obj: ', obj);
   done(null, obj);
 });
 
@@ -38,9 +42,13 @@ passport.deserializeUser(function(obj, done) {
 passport.use(new SliceStrategy({
     clientID: process.env.SLICE_CLIENT_ID,
     clientSecret: process.env.SLICE_CLIENT_SECRET,
-    callbackURL: "https://2c8f053f.ngrok.com/auth/slice/callback"
+    callbackURL: "https://566f1d8c.ngrok.com/auth/slice/callback",
+    passReqToCallback: true
   },
-  function(accessToken, refreshToken, profile, done) {
+  function(req, accessToken, refreshToken, profile, done) {
+    var cipher = crypto.createCipher(process.env.CIPHER_ALGORITHM, process.env.CIPHER_KEY);  
+    req.session.accessToken = cipher.update(accessToken, 'utf8', 'hex') + cipher.final('hex');
+    // console.log('aT: ', accessToken);
     process.nextTick(function () {
       return done(null, profile);
     });
@@ -59,6 +67,7 @@ app.get('/auth/slice/callback',
   }));
 
 app.get('/', function(req, res){
+  // console.log(crypto.getCiphers());
   res.send('<a href="/auth/slice">Log In with Slice</a>');
 });
 
@@ -71,14 +80,59 @@ app.get('/logout', function(req, res){
   res.redirect('/');
 });
 
-// test authentication
-var ensureAuthenticated = function(req, res, next) {
+// make api call for items to Slice
+var sliceGetRequest = function(resourceType, accessToken, callback, parameter) {
+  var apiPath = "/api/v1/" + resourceType;
+  if (parameter) {
+    apiPath += "/?";
+    for (var key in parameter) {
+      apiPath += key + "=" + parameter[key];
+    }
+  }
+  var options = {
+    host: "api.slice.com",
+    path: apiPath,
+    headers: {
+      "Authorization": "Bearer " + accessToken
+    }
+  };
+  var req = https.request(options, function(res) {
+    // console.log("statusCode: ", res.statusCode);
+    // console.log("headers: ", res.headers);
+    var body = '';
+    res.on('data', function(chunk) {
+      body += chunk;
+      // process.stdout.write(data);
+    });
+    res.on('end', function() {
+      callback(body);
+    });
+  });
+  req.end();
+
+  req.on('error', function(e) {
+    console.error(e);
+  });
+};
+
+var getUserItems = function(req, res, next) {
+  var decipher = crypto.createDecipher(process.env.CIPHER_ALGORITHM, process.env.CIPHER_KEY);
+  var decrypted = decipher.update(req.session.accessToken, 'hex', 'utf8') + decipher.final('utf8');
+
+  sliceGetRequest('items', decrypted, function(data) { console.log(data) }, {limit: 10}); 
+
+  return next();
+};
+
+// test if user is authenticated
+var ensureAuthenticated = function (req, res, next) {
   if (req.isAuthenticated()) {
     return next();
   }
   res.redirect('/login');
 };
 
-app.get('/account', ensureAuthenticated, function(req, res) {
+app.get('/account', ensureAuthenticated, getUserItems, function(req, res) {
+  // console.log("session: ", req.session, "decrypted: ");
   res.send('Congrats on logging in with Slice!');
 });
