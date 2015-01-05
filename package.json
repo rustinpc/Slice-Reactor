@@ -47,7 +47,7 @@
   "scripts": {
     "watch": "watchify public/js/app.js -o public/js/bundle.js -v -d .",
     "build": "browserify . | uglifyjs -cm > public/js/bundle.min.js",
-    "test": "jest",
+    "test": "jest & mocha",
     "postinstall": "bower cache clean && bower install",
     "start": "npm run watch & node server.js"
   },
