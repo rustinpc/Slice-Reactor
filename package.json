@@ -49,7 +49,7 @@
     "build": "browserify . | uglifyjs -cm > public/js/bundle.min.js",
     "test": "jest & mocha",
     "postinstall": "bower cache clean && bower install",
-    "start": "npm run watch & node server.js"
+    "start": "node server.js"
   },
   "browserify": {
     "transform": [
