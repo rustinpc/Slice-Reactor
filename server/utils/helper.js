@@ -117,6 +117,8 @@ var ordersHandler = function(orders, userId, getRequest){
           user.save();
         });
       });
+    } else {
+      getRequest();
     }
     console.log('INVALID ORDERS: (', invalidOrders.length,') ', invalidOrders);
   });
@@ -153,11 +155,22 @@ var merchantsHandler = function(merchants, userId, getRequest){
 var getUserData = function(req, res, next) {
   var decipher = crypto.createDecipher(process.env.CIPHER_ALGORITHM, process.env.CIPHER_KEY);
   var decryptedAccessToken = decipher.update(req.session.accessToken, 'hex', 'utf8') + decipher.final('utf8');
-  
-  // last argument {limit: 1}
-  var itemsGetRequest = sliceGetRequest.bind(null, 'items', decryptedAccessToken, itemsHandler, req.session.UserId, false, false);
-  var ordersGetRequest = sliceGetRequest.bind(null,'orders', decryptedAccessToken, ordersHandler, req.session.UserId, false, itemsGetRequest);
-  sliceGetRequest('merchants', decryptedAccessToken, merchantsHandler, req.session.UserId, false, ordersGetRequest);
+  var ordersGetRequestParameter = false;
+  var itemsGetRequestParameter = false;
+
+  db.Users.find({where: {id: req.session.UserId}})
+    .then(function (user) {
+      if (user.dataValues.updateOrders) {
+        ordersGetRequestParameter = {since: user.dataValues.updateOrders};
+      }
+      if (user.dataValues.updateItems) {
+        itemsGetRequestParameter = {since: user.dataValues.updateItems};
+      }
+      // last argument {limit: 1}
+      var itemsGetRequest = sliceGetRequest.bind(null, 'items', decryptedAccessToken, itemsHandler, req.session.UserId, itemsGetRequestParameter, false);
+      var ordersGetRequest = sliceGetRequest.bind(null,'orders', decryptedAccessToken, ordersHandler, req.session.UserId, ordersGetRequestParameter, itemsGetRequest);
+      sliceGetRequest('merchants', decryptedAccessToken, merchantsHandler, req.session.UserId, false, ordersGetRequest);
+    });
 
   return next();
 };
