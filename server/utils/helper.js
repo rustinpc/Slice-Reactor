@@ -11,7 +11,7 @@ var ensureAuthenticated = function (req, res, next) {
 };
 
 // make api call for items to Slice
-var sliceGetRequest = function(resourceType, accessToken, callback, userId, parameter) {
+var sliceGetRequest = function(resourceType, accessToken, callback, userId, parameter, getRequest) {
   var apiPath = "/api/v1/" + resourceType;
   if (parameter) {
     apiPath += "/?";
@@ -33,7 +33,7 @@ var sliceGetRequest = function(resourceType, accessToken, callback, userId, para
       body += chunk;
     });
     res.on('end', function() {
-      callback(JSON.parse(body), userId);
+      callback(JSON.parse(body), userId, getRequest);
     });
   });
   req.end();
@@ -73,13 +73,14 @@ var itemsHandler = function(items, userId){
       }
     }
     if (validItems.length > 0) {
-      db.Items.bulkCreate(validItems);
+      db.Items.bulkCreate(validItems).then(function() {
+        db.Users.find({where:{id: userId}}).then(function(user) {
+          user.updateItems = items.currentTime;
+          user.save();
+        });
+      });
     }
     console.log('INVALID ITEMS: (', invalidItems.length,') ', invalidItems);
-  });
-  db.Users.find({where:{id: userId}}).then(function(user) {
-    user.updateItems = items.currentTime;
-    user.save();
   });
 };
 
@@ -89,7 +90,7 @@ var createOrderObject = function(rawOrder, userId) {
   return processedOrder;
 };
 
-var ordersHandler = function(orders, userId){
+var ordersHandler = function(orders, userId, getRequest){
   db.Merchants.findAll({
    attributes: ['href']
    }).complete(function(err, merchantIds) {
@@ -109,18 +110,19 @@ var ordersHandler = function(orders, userId){
       }
     }
     if (validOrders.length > 0) {
-      db.Orders.bulkCreate(validOrders);
+      db.Orders.bulkCreate(validOrders).then(function() {
+        getRequest();
+        db.Users.find({where:{id: userId}}).then(function(user) {
+          user.updateOrders = orders.currentTime;
+          user.save();
+        });
+      });
     }
     console.log('INVALID ORDERS: (', invalidOrders.length,') ', invalidOrders);
   });
-  
-  db.Users.find({where:{id: userId}}).then(function(user) {
-    user.updateOrders = orders.currentTime;
-    user.save();
-  });
 };
 
-var merchantsHandler = function(merchants, userId){
+var merchantsHandler = function(merchants, userId, getRequest){
   var sequelizeInsert = merchants.result;
   var merchantHrefs = {};
   var newMerchants = [];
@@ -135,7 +137,11 @@ var merchantsHandler = function(merchants, userId){
         }
       }
       if (newMerchants.length > 0) {
-        db.Merchants.bulkCreate(newMerchants);
+        db.Merchants.bulkCreate(newMerchants).then(function(){
+          getRequest();
+        });
+      } else {
+        getRequest();
       }
     } else {
       db.Merchants.bulkCreate(sequelizeInsert);
@@ -149,9 +155,9 @@ var getUserData = function(req, res, next) {
   var decryptedAccessToken = decipher.update(req.session.accessToken, 'hex', 'utf8') + decipher.final('utf8');
   
   // last argument {limit: 1}
-  sliceGetRequest('merchants', decryptedAccessToken, merchantsHandler, req.session.UserId);
-  sliceGetRequest('orders', decryptedAccessToken, ordersHandler, req.session.UserId);
-  sliceGetRequest('items', decryptedAccessToken, itemsHandler, req.session.UserId);
+  var itemsGetRequest = sliceGetRequest.bind(null, 'items', decryptedAccessToken, itemsHandler, req.session.UserId, false, false);
+  var ordersGetRequest = sliceGetRequest.bind(null,'orders', decryptedAccessToken, ordersHandler, req.session.UserId, false, itemsGetRequest);
+  sliceGetRequest('merchants', decryptedAccessToken, merchantsHandler, req.session.UserId, false, ordersGetRequest);
 
   return next();
 };
