@@ -99,8 +99,8 @@ var GraphDataStore = assign({}, EventEmitter.prototype, {
   getLineChart: function() {
     return helper.lineChartProcessing(_graphData);
   },
-  getBarGraph: function() {
-    return helper.barGraphProcessing(_filteredGraphData);
+  getBarChart: function() {
+    return helper.barChartProcessing(_filteredGraphData);
   }
 
 });

@@ -21,48 +21,48 @@ var lineChartProcessing = function(data) {
   return lineChartData;
 };
 
-var barGraphProcessing = function(data) {
-  var sliceDataByCategory = {};
+var barChartProcessing = function(data) {
+  var sliceDataByCategoryOrMerchant = {};
   for (var i = 0; i < data.length; i++) {
     if (data[i].price > 0) {
-      var itemCategory = data[i].secondaryLabel;
-      if (itemCategory === null) {
-        itemCategory = 'Other';
+      var itemLabel = data[i].secondaryLabel;
+      if (itemLabel === null) {
+        itemLabel = 'Other';
       }
-      if (!sliceDataByCategory[itemCategory]) {
-        sliceDataByCategory[itemCategory] = data[i].price;
+      if (!sliceDataByCategoryOrMerchant[itemLabel]) {
+        sliceDataByCategoryOrMerchant[itemLabel] = data[i].price;
       } else {
-        sliceDataByCategory[itemCategory] += data[i].price;
+        sliceDataByCategoryOrMerchant[itemLabel] += data[i].price;
       }
     }
   }
-  barGraphAll = [];
-  for (var key in sliceDataByCategory) {
+  barChartAll = [];
+  for (var key in sliceDataByCategoryOrMerchant) {
     var barChartItem = {};
-    barChartItem['categoryName'] = key;
-    barChartItem['price'] = sliceDataByCategory[key].toFixed(2);
-    barGraphAll.push(barChartItem);
+    barChartItem['categoryOrMerchantName'] = key;
+    barChartItem['price'] = sliceDataByCategoryOrMerchant[key].toFixed(2);
+    barChartAll.push(barChartItem);
   }
-  barGraphAll.sort(function(a, b) {
+  barChartAll.sort(function(a, b) {
     return b.price - a.price;
   });
-  barGraphData = [];
+  barChartData = [];
   var barChartOther = {
-    categoryName: 'All Others',
+    categoryOrMerchantName: 'All Others',
     price: 0
   }
-  for (var i = 0; i < barGraphAll.length; i++) {
+  for (var i = 0; i < barChartAll.length; i++) {
     if (i < 6) {
-      barGraphData.push(barGraphAll[i]);
+      barChartData.push(barChartAll[i]);
     } else {
-      barChartOther.price += parseFloat(barGraphAll[i].price);
+      barChartOther.price += parseFloat(barChartAll[i].price);
     }
   }
   if (barChartOther.price > 0) {
-    barGraphData.push(barChartOther);
+    barChartData.push(barChartOther);
   }
-  return barGraphData;
+  return barChartData;
 };
 
 module.exports.lineChartProcessing = lineChartProcessing;
-module.exports.barGraphProcessing = barGraphProcessing;
+module.exports.barChartProcessing = barChartProcessing;

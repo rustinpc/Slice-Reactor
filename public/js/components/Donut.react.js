@@ -2,19 +2,23 @@ var React = require('react');
 var GraphDataStore = require('../stores/GraphDataStore');
 
 var getStateFromStores = function() {
-  var array = GraphDataStore.getData();
-  var categoryNames = {};
+  var data = GraphDataStore.getData();
+  var categoryOrMerchantData = {};
   var JSONobj = [];
-  array.forEach(function(item) {
-    var key = item.primaryLabel;
-    var value = 0;
-
-    if (item.price > 0)
-      value = item.price / 100;
-
-    categoryNames[key] = value;
+  data.forEach(function(item) {
+    if (item.price > 0) {
+      var itemLabel = item.primaryLabel;
+      if (itemLabel === null) {
+        itemLabel = 'Other';
+      }
+      if (!categoryOrMerchantData[itemLabel]) {
+        categoryOrMerchantData[itemLabel] = item.price;
+      } else {
+        categoryOrMerchantData[itemLabel] += item.price;
+      }
+    }
   });
-  JSONobj.push(categoryNames);
+  JSONobj.push(categoryOrMerchantData);
   return {data: JSONobj};
 };
 

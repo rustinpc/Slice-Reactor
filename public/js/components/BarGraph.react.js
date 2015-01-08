@@ -2,7 +2,7 @@ var React = require('react');
 var GraphDataStore = require('../stores/GraphDataStore');
 
 var getStateFromStores = function() {
-  return {data: GraphDataStore.getBarGraph()}
+  return {data: GraphDataStore.getBarChart()}
 };
 
 var BarGraph = React.createClass({
@@ -23,7 +23,7 @@ var BarGraph = React.createClass({
       data: {
         json: dataset,
         keys: {
-          x : 'categoryName',
+          x : 'categoryOrMerchantName',
           value: ['price']
         },
           type: 'bar'
@@ -31,7 +31,7 @@ var BarGraph = React.createClass({
         axis: {
           rotated: true,
           x: {
-            type: 'categoryName' // this needed to load string x value
+            type: 'categoryOrMerchantName' // this needed to load string x value
           }
         },
       color: {
