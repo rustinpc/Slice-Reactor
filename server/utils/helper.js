@@ -52,10 +52,10 @@ var createItemObject = function(rawItem, userId) {
   return processedItem;
 };
 
-var itemsHandler = function(items, userId, res){
+var itemsHandler = function(items, req, res){
   db.Orders.findAll({
    attributes: ['href'],
-   where: {UserId: userId}
+   where: {UserId: req.session.UserId}
    }).complete(function(err, userOrders) {
     var orderHrefs = {};
     var validItems = [];
@@ -66,16 +66,19 @@ var itemsHandler = function(items, userId, res){
       }
       for (var i = 0; i < items.result.length; i++) {
         if (!orderHrefs[items.result[i].order.href]) {
-          invalidItems.push(createItemObject(items.result[i], userId));
+          invalidItems.push(createItemObject(items.result[i], req.session.UserId));
         } else {
-          validItems.push(createItemObject(items.result[i], userId));
+          validItems.push(createItemObject(items.result[i], req.session.UserId));
         }
       }
     }
     if (validItems.length > 0) {
       db.Items.bulkCreate(validItems).then(function() {
         res.redirect('/');
-        db.Users.find({where:{id: userId}}).then(function(user) {
+        db.Users.find({where:{id: req.session.UserId}}).then(function(user) {
+          var currentTime = new Date;
+          req.session.lastGetRequest = currentTime.getTime();
+          user.lastGetRequest = currentTime.getTime();
           user.updateItems = items.currentTime;
           user.save();
         });
@@ -170,7 +173,7 @@ var getUserData = function(req, res) {
         itemsGetRequestParameter = {since: user.dataValues.updateItems};
       }
       // last argument {limit: 1}
-      var itemsGetRequest = sliceGetRequest.bind(null, 'items', decryptedAccessToken, itemsHandler, req.session.UserId, itemsGetRequestParameter, res);
+      var itemsGetRequest = sliceGetRequest.bind(null, 'items', decryptedAccessToken, itemsHandler, req, itemsGetRequestParameter, res);
       var ordersGetRequest = sliceGetRequest.bind(null,'orders', decryptedAccessToken, ordersHandler, req.session.UserId, ordersGetRequestParameter, itemsGetRequest);
       sliceGetRequest('merchants', decryptedAccessToken, merchantsHandler, req.session.UserId, false, ordersGetRequest);
     });

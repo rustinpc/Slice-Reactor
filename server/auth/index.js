@@ -24,6 +24,10 @@ passport.use(new SliceStrategy({
 
     db.Users.findOrCreate({where: {userEmail: profile.userEmail}})
       .then(function (user) {
+        req.session.lastGetRequest = false;
+        if (user[0].dataValues.lastGetRequest) {
+          req.session.lastGetRequest = user[0].dataValues.lastGetRequest;
+        }
         user[0].dataValues.createTime = profile._json.result.createTime;
         user[0].dataValues.firstName = profile.firstName;
         user[0].dataValues.lastName = profile.lastName;

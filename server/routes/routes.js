@@ -44,10 +44,17 @@ module.exports = function(app, helper, db) {
   });
 
   app.get('/loading', helper.ensureAuthenticated, function(req, res) {
-    fs.readFile(__dirname + '/../../public/loading.html', 'utf8', function(err,data) {
-      if (err) { throw err }
-      res.send(data);
-    });
+    console.log('!!!!!', req.session.lastGetRequest);
+    var currentTime = new Date;
+    var millisecondsInADay = 1000 * 60 * 60 * 24;
+    if (!req.session.lastGetRequest || currentTime.getTime() - req.session.lastGetRequest > millisecondsInADay) {
+      fs.readFile(__dirname + '/../../public/loading.html', 'utf8', function(err,data) {
+        if (err) { throw err }
+        res.send(data);
+      }); 
+    } else {
+      res.redirect('/');
+    }
   });
 
 };

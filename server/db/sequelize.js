@@ -11,7 +11,8 @@ var Users = sequelize.define('Users', {
   userEmail: Sequelize.STRING(100),
   userName: Sequelize.STRING(100),
   updateOrders: Sequelize.BIGINT,
-  updateItems: Sequelize.BIGINT
+  updateItems: Sequelize.BIGINT,
+  lastGetRequest: Sequelize.BIGINT
 });
 
 var Categories = sequelize.define('Categories', {
