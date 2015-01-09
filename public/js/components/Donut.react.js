@@ -4,7 +4,6 @@ var GraphDataStore = require('../stores/GraphDataStore');
 var getStateFromStores = function() {
   var data = GraphDataStore.getData();
   var categoryOrMerchantData = {};
-  // var JSONobj = [];
   var totalSpent = 0;
   data.forEach(function(item) {
     if (item.price > 0) {
@@ -45,7 +44,6 @@ var getStateFromStores = function() {
     donutChartAllOthersItem[1] = donutChartAllOthersItem[1].toFixed(2);
     donutChartData.push(donutChartAllOthersItem);
   }
-  // JSONobj.push(categoryOrMerchantData);
   return {data: donutChartData};
 };
 
