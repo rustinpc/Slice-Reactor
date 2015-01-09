@@ -226,6 +226,7 @@ var getUserData = function(userId, req, res) {
         ordersGetRequestParameter = {since: user.updateOrders};
         itemsGetRequestParameter = {since: user.updateItems};
       }
+
       // Parameter argument handles since and limit, ie. {limit: 1, since: timeInMillisecondsSince1970}
       var itemsGetRequest = sliceGetRequest.bind(null, 'items', decryptedAccessToken, itemsHandler, userId, itemsGetRequestParameter, request, response);
       var ordersGetRequest = sliceGetRequest.bind(null,'orders', decryptedAccessToken, ordersHandler, userId, ordersGetRequestParameter, itemsGetRequest);
