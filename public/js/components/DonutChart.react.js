@@ -1,12 +1,40 @@
 var React = require('react');
 var DonutChartStore = require('../stores/DonutChartStore');
 var FilteredDataStore = require('../stores/FilteredDataStore');
+var ChartActionCreators = require('../actions/ChartActionCreators');
+
+var colorArray = [];
+var donutPieceColor, pieceName,dollarAmount;
+var currentDisplayState = 'none';
+
+var showDisplay = function(){
+  return {display: currentDisplayState}
+};
+
+var donutPieceValue = function(name, amount){
+  currentDisplayState = 'inline';
+  pieceName = name;
+  dollarAmount = "$" + Math.floor(amount) + " spent"
+};
+
+var addColorToDiv = function(pieceName){
+  colorArray.forEach(function(item){
+    if(item[1] === pieceName){
+      donutPieceColor = item[0];
+    }
+  });
+  return {backgroundColor: donutPieceColor}
+};
+
+var updateChartData = function(item){
+  ChartActionCreators.filterDonutChartData(item);
+};
 
 var getStateFromStores = function() {
   return {data: DonutChartStore.getData()}
 };
 
-var Donut = React.createClass({
+var DonutChart = React.createClass({
   getInitialState: function(){
     return getStateFromStores();
   },
@@ -22,7 +50,19 @@ var Donut = React.createClass({
       bindto: '#chart_1',
       data: {
         columns: dataset,
-        type: 'donut'
+        type: 'donut',
+        order: null,
+        color: function (color, d) {
+          if (d.id){
+            colorArray.push([color, d.id]);
+          }
+          return color;
+        },
+        onclick: function (d) { 
+          addColorToDiv(d.id);
+          donutPieceValue(d.id, d.value);
+          updateChartData(d.id);
+        }
       },
       legend: {
         position: 'right'
@@ -45,13 +85,19 @@ var Donut = React.createClass({
         <div className="graph-header">
           <h2>Spending by {FilteredDataStore.getFilterValue().primary}</h2>
         </div>
+        <div id="donutPieceName" style={showDisplay()}>
+          <div id="donutPieceColor" style={addColorToDiv()}></div>
+          <li id="elementName">{pieceName}</li>
+          <li>{dollarAmount}</li>
+        </div>
         <div id="chart_1"></div>
       </div>
     );
   },
   _onChange: function() {
     this.setState(getStateFromStores());
+    currentDisplayState = 'none';
   }
 });
 
-module.exports = Donut;
+module.exports = DonutChart;
