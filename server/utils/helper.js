@@ -119,9 +119,9 @@ var itemsHandler = function(items, userId, req, res){
       }
       for (var i = 0; i < items.result.length; i++) {
         if (!orderHrefs[items.result[i].order.href]) {
-          invalidItems.push(createItemObject(items.result[i], req.session.UserId));
+          invalidItems.push(createItemObject(items.result[i], userId));
         } else {
-          validItems.push(createItemObject(items.result[i], req.session.UserId));
+          validItems.push(createItemObject(items.result[i], userId));
         }
       }
     }
@@ -226,7 +226,6 @@ var getUserData = function(userId, req, res) {
         ordersGetRequestParameter = {since: user.updateOrders};
         itemsGetRequestParameter = {since: user.updateItems};
       }
-
       // Parameter argument handles since and limit, ie. {limit: 1, since: timeInMillisecondsSince1970}
       var itemsGetRequest = sliceGetRequest.bind(null, 'items', decryptedAccessToken, itemsHandler, userId, itemsGetRequestParameter, request, response);
       var ordersGetRequest = sliceGetRequest.bind(null,'orders', decryptedAccessToken, ordersHandler, userId, ordersGetRequestParameter, itemsGetRequest);
@@ -247,7 +246,7 @@ var refreshUserAccessToken = function() {
       });
     });
 };
-refreshUserAccessToken();
+
 module.exports.getUserData = getUserData;
 module.exports.refreshUserAccessToken = refreshUserAccessToken;
 module.exports.ensureAuthenticated = ensureAuthenticated;
