@@ -2,7 +2,7 @@ var fs = require('fs');
 var helper = require('../utils/helper');
 module.exports = function(app, helper, db) {
 
-  app.get('/', helper.ensureAuthenticated, function(req, res){
+  app.get('/', helper.ensureAuthenticated, function(req, res) {
     if (req.session.newUser) {
       res.redirect('./loading');
     } else {
@@ -48,22 +48,52 @@ module.exports = function(app, helper, db) {
     });
   });
 
+  app.get('/updateuserdata', function(req, res){
+    if (req.session.dataStatus === 'updated') {
+      var user = req.session.UserId;
+      // query database for user info
+      db.Items.findAll({
+      attributes: ['purchaseDate', 'categoryName', 'price', 'quantity'],
+      where: {UserId: user},
+      include: [
+        {model: db.Orders, include: [
+          {model: db.Merchants, attributes: ['name']}
+        ], attributes: ['orderTotal']}
+      ]
+      }).then(function(items) {
+        // if user has data return data to client
+        if (items.length > 0) {
+          res.send(JSON.stringify(items));
+        } else {
+          // must send response to data request from front end
+          res.status(200).send('empty');
+        }
+      });
+    } else if (req.session.dataStatus === 'notupdated') {
+      res.status(200).send('empty');
+    } else {
+      res.status(202).send();
+    }
+  });
+
+  app.get('/newuserdata', function(req, res){
+    console.log(req.session);
+    if (req.session.dataStatus === 'updated') {
+      res.status(200).send();
+    } else {
+      res.status(202).send();
+    }
+  });
+
   app.get('/loaduserdata', helper.ensureAuthenticated, function(req, res) {
     helper.getUserData(req.session.UserId, req, res);
   });
 
   app.get('/loading', helper.ensureAuthenticated, function(req, res) {
-    console.log('!!!!!', req.session.lastGetRequest);
-    var currentTime = new Date;
-    var millisecondsInADay = 1000 * 60 * 60 * 24;
-    if (!req.session.lastGetRequest || currentTime.getTime() - req.session.lastGetRequest > millisecondsInADay) {
-      fs.readFile(__dirname + '/../../public/loading.html', 'utf8', function(err,data) {
-        if (err) { throw err }
-        res.send(data);
-      }); 
-    } else {
-      res.redirect('/');
-    }
+    fs.readFile(__dirname + '/../../public/loading.html', 'utf8', function(err,data) {
+      if (err) { throw err }
+      res.send(data);
+    }); 
   });
 
   app.get('/newuser', helper.ensureAuthenticated, function(req, res) {

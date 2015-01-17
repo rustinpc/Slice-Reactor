@@ -106,39 +106,42 @@ var createItemObject = function(rawItem, userId) {
   return processedItem;
 };
 
-var itemsHandler = function(items, userId, req, res){
-  db.Orders.findAll({
+var itemsHandler = function(items, userId, req, orderHrefs){
+  db.Items.findAll({
    attributes: ['href'],
-   where: {UserId: req.session.UserId}
-   }).complete(function(err, userOrders) {
-    var orderHrefs = {};
+   where: {UserId: userId}
+   }).complete(function(err, userItems) {
+    var itemHrefs = {};
     var validItems = [];
     var invalidItems = [];
-    if (userOrders) {
-      for (var i = 0; i < userOrders.length; i++) {
-        orderHrefs[userOrders[i].href] = true;
+    if (userItems) {
+      for (var i = 0; i < userItems.length; i++) {
+        itemHrefs[userItems[i].href] = true;
       }
       for (var i = 0; i < items.result.length; i++) {
-        if (!orderHrefs[items.result[i].order.href]) {
-          invalidItems.push(createItemObject(items.result[i], req.session.UserId));
+        if (!orderHrefs[items.result[i].order.href] || itemHrefs[items.result[i].href]) {
+          invalidItems.push(createItemObject(items.result[i], userId));
         } else {
-          validItems.push(createItemObject(items.result[i], req.session.UserId));
+          validItems.push(createItemObject(items.result[i], userId));
+          itemHrefs[items.result[i].href] = true;
         }
       }
     }
     if (validItems.length > 0) {
       db.Items.bulkCreate(validItems).then(function() {
-        if (res) {
-          req.session.newUser = false;
-          res.redirect('/');
-        }
+        req.session.dataStatus = 'updated';
+        req.session.newUser = false;
+        req.session.save();
+        // res.redirect('/');
         db.Users.find({where:{id: userId}}).then(function(user) {
           user.updateItems = items.currentTime;
           user.save();
         });
       });
-    } else if (res) {
-      res.redirect('/');
+    } else {
+      req.session.dataStatus = 'notupdated';
+      req.session.save();
+      // res.redirect('/');
     }
     console.log('INVALID ITEMS: (', invalidItems.length,') ', invalidItems);
   });
@@ -150,38 +153,40 @@ var createOrderObject = function(rawOrder, userId) {
   return processedOrder;
 };
 
-var ordersHandler = function(orders, userId, getRequest){
-  db.Merchants.findAll({
-   attributes: ['href']
-   }).complete(function(err, merchantIds) {
-    var merchantIdObject = {};
-    var validOrders = [];
-    var invalidOrders = [];
-    if (merchantIds) {
-      for (var i = 0; i < merchantIds.length; i++) {
-        merchantIdObject[merchantIds[i].href] = true;
-      }
-      for (var i = 0; i < orders.result.length; i++) {
-        if (!merchantIdObject[orders.result[i].merchant.href]) {
-          invalidOrders.push(createOrderObject(orders.result[i], userId));
-        } else {
-          validOrders.push(createOrderObject(orders.result[i], userId));
+var ordersHandler = function(orders, userId, getRequest, merchantHrefs) {
+  var validOrders = [];
+  var invalidOrders = [];
+  db.Orders.findAll({
+    attributes: ['href'],
+    where: {UserId: userId}
+    }).complete(function(err, userOrders) {
+      var orderHrefs = {};
+      if (userOrders) {
+        for (var i = 0; i < userOrders.length; i++) {
+          orderHrefs[userOrders[i].href] = true;
+        }
+        for (var i = 0; i < orders.result.length; i++) {
+          if (!merchantHrefs[orders.result[i].merchant.href] || orderHrefs[orders.result[i].href]) {
+            invalidOrders.push(createOrderObject(orders.result[i], userId));
+          } else {
+            validOrders.push(createOrderObject(orders.result[i], userId));
+            orderHrefs[orders.result[i].href] = true;
+          }
         }
       }
-    }
-    if (validOrders.length > 0) {
-      db.Orders.bulkCreate(validOrders).then(function() {
-        getRequest();
-        db.Users.find({where:{id: userId}}).then(function(user) {
-          user.updateOrders = orders.currentTime;
-          user.save();
+      if (validOrders.length > 0) {
+        db.Orders.bulkCreate(validOrders).then(function() {
+          getRequest(orderHrefs);
+          db.Users.find({where:{id: userId}}).then(function(user) {
+            user.updateOrders = orders.currentTime;
+            user.save();
+          });
         });
-      });
-    } else {
-      getRequest();
-    }
-    console.log('INVALID ORDERS: (', invalidOrders.length,') ', invalidOrders);
-  });
+      } else {
+        getRequest(orderHrefs);
+      }
+      console.log('INVALID ORDERS: (', invalidOrders.length,') ', invalidOrders);
+    });
 };
 
 var merchantsHandler = function(merchants, userId, getRequest){
@@ -196,39 +201,43 @@ var merchantsHandler = function(merchants, userId, getRequest){
       for (var i = 0; i < sequelizeInsert.length; i++) {
         if (!merchantHrefs[sequelizeInsert[i].href]) {
           newMerchants.push(sequelizeInsert[i]);
+          merchantHrefs[sequelizeInsert[i].href] = true;
         }
       }
       if (newMerchants.length > 0) {
         db.Merchants.bulkCreate(newMerchants).then(function(){
-          getRequest();
+          getRequest(merchantHrefs);
         });
       } else {
-        getRequest();
+        getRequest(merchantHrefs);
       }
     } else {
-      db.Merchants.bulkCreate(sequelizeInsert);
+      db.Merchants.bulkCreate(sequelizeInsert).then(function() {
+        getRequest(merchantHrefs);
+      });
     }
   });
 };
 
 // decrypt access token and call function to make GET request of Slice API
-var getUserData = function(userId, req, res) {
+var getUserData = function(userId, req, encryptedAccessToken) {
   var ordersGetRequestParameter = false;
   var itemsGetRequestParameter = false;
-  request = req || false;
-  response = res || false;
+  var request = req || false;
+  // response = res || false;
 
   db.Users.find({where: {id: userId}})
     .then(function (user) {
+      encryptedAccessToken = user.accessToken || encryptedAccessToken;
       var decipher = crypto.createDecipher(process.env.CIPHER_ALGORITHM, process.env.CIPHER_KEY);
-      var decryptedAccessToken = decipher.update(user.accessToken, 'hex', 'utf8') + decipher.final('utf8');
+      var decryptedAccessToken = decipher.update(encryptedAccessToken, 'hex', 'utf8') + decipher.final('utf8');
 
       if (user.updateOrders && user.updateItems) {
         ordersGetRequestParameter = {since: user.updateOrders};
         itemsGetRequestParameter = {since: user.updateItems};
       }
       // Parameter argument handles since and limit, ie. {limit: 1, since: timeInMillisecondsSince1970}
-      var itemsGetRequest = sliceGetRequest.bind(null, 'items', decryptedAccessToken, itemsHandler, userId, itemsGetRequestParameter, request, response);
+      var itemsGetRequest = sliceGetRequest.bind(null, 'items', decryptedAccessToken, itemsHandler, userId, itemsGetRequestParameter, request);
       var ordersGetRequest = sliceGetRequest.bind(null,'orders', decryptedAccessToken, ordersHandler, userId, ordersGetRequestParameter, itemsGetRequest);
       sliceGetRequest('merchants', decryptedAccessToken, merchantsHandler, userId, false, ordersGetRequest);
     });

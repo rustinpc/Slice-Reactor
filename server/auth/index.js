@@ -1,5 +1,6 @@
 var crypto = require('crypto');
 var SliceStrategy = require('passport-slice').Strategy;
+var helper = require('../utils/helper');
 
 module.exports = function(passport, db) {
 
@@ -26,10 +27,6 @@ passport.use(new SliceStrategy({
 
     db.Users.findOrCreate({where: {userEmail: profile.userEmail}})
       .then(function (user) {
-        req.session.lastGetRequest = false;
-        if (user[0].dataValues.lastGetRequest) {
-          req.session.lastGetRequest = user[0].dataValues.lastGetRequest;
-        }
         user[0].dataValues.createTime = profile._json.result.createTime;
         user[0].dataValues.firstName = profile.firstName;
         user[0].dataValues.lastName = profile.lastName;
@@ -39,6 +36,9 @@ passport.use(new SliceStrategy({
         user[0].dataValues.refreshToken = encryptedRefreshToken;
         user[0].save();
 
+        req.session.dataStatus = 'started';
+        helper.getUserData(user[0].dataValues.id, req, encryptedAccessToken);
+          
         // set newUser value in session
         req.session.newUser = false;
         if (user[1]) {

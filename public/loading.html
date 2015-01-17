@@ -5,6 +5,7 @@
     <title>Slice-Reactor</title>
     <link rel="stylesheet" href="style/style.css">
     <link rel="stylesheet" href="lib/fontawesome/css/font-awesome.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
   </head>
   <body>
     <div id="background">
@@ -23,6 +24,18 @@
     </div>
   </body>
   <script type="text/javascript">
-    window.location = "./loaduserdata";
+  var requestAgain = function() {
+    setTimeout(function() {getUpdate();}, 2000);
+  }
+  var getUpdate = function() {
+    $.get('/newuserdata', function(data, textStatus, xhr) {
+      if (xhr.status === 202) {
+        requestAgain();
+      } else {
+        window.location.replace('/');
+      }
+    });
+  };
+  getUpdate();
   </script>
 </html>
