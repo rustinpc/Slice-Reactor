@@ -2,11 +2,13 @@ var ServerActionCreators = require('../actions/ServerActionCreators');
 
 module.exports = {
   getAllGraphData: function() {
-    module.exports.getUpdatedChartData();
     $.get('/userdata', function(data, textStatus, xhr) {
       if (xhr.status === 200 && data === 'empty') {
         window.location = './newuser';
       } else {
+        if (xhr.status === 202) {
+          module.exports.getUpdatedChartData();
+        }
         ServerActionCreators.receiveAllChartData(JSON.parse(data));
       }
     });

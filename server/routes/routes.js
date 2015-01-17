@@ -28,6 +28,7 @@ module.exports = function(app, helper, db) {
   //handles get request from client
   app.get('/userdata', function(req, res){
     var user = req.session.UserId;
+    var dataUpdateStatus = req.session.dataStatus;
     // query database for user info
     db.Items.findAll({
     attributes: ['purchaseDate', 'categoryName', 'price', 'quantity'],
@@ -40,6 +41,9 @@ module.exports = function(app, helper, db) {
     }).then(function(items) {
       // if user has data return data to client
       if (items.length > 0) {
+        if (dataUpdateStatus === 'started') {
+          res.status(202);
+        }
         res.send(JSON.stringify(items));
       } else {
         // must send response to data request from front end
@@ -77,7 +81,6 @@ module.exports = function(app, helper, db) {
   });
 
   app.get('/newuserdata', function(req, res){
-    console.log(req.session);
     if (req.session.dataStatus === 'updated') {
       res.status(200).send();
     } else {
@@ -93,7 +96,7 @@ module.exports = function(app, helper, db) {
     fs.readFile(__dirname + '/../../public/loading.html', 'utf8', function(err,data) {
       if (err) { throw err }
       res.send(data);
-    }); 
+    });
   });
 
   app.get('/newuser', helper.ensureAuthenticated, function(req, res) {

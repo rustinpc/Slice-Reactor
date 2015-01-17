@@ -132,7 +132,6 @@ var itemsHandler = function(items, userId, req, orderHrefs){
         req.session.dataStatus = 'updated';
         req.session.newUser = false;
         req.session.save();
-        // res.redirect('/');
         db.Users.find({where:{id: userId}}).then(function(user) {
           user.updateItems = items.currentTime;
           user.save();
@@ -141,7 +140,6 @@ var itemsHandler = function(items, userId, req, orderHrefs){
     } else {
       req.session.dataStatus = 'notupdated';
       req.session.save();
-      // res.redirect('/');
     }
     console.log('INVALID ITEMS: (', invalidItems.length,') ', invalidItems);
   });
@@ -224,11 +222,10 @@ var getUserData = function(userId, req, encryptedAccessToken) {
   var ordersGetRequestParameter = false;
   var itemsGetRequestParameter = false;
   var request = req || false;
-  // response = res || false;
 
   db.Users.find({where: {id: userId}})
     .then(function (user) {
-      encryptedAccessToken = user.accessToken || encryptedAccessToken;
+      encryptedAccessToken = encryptedAccessToken || user.accessToken;
       var decipher = crypto.createDecipher(process.env.CIPHER_ALGORITHM, process.env.CIPHER_KEY);
       var decryptedAccessToken = decipher.update(encryptedAccessToken, 'hex', 'utf8') + decipher.final('utf8');
 
